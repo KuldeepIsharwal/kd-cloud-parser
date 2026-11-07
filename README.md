@@ -80,3 +80,14 @@ Checksum check: `python3 worker/clean.py --in-dir data/teacher --out-dir /tmp/c 
 make down                     # deletes the k3d cluster (and with it SeaweedFS and all Pods)
 docker rm -f ollama           # optional: stop the teacher
 ```
+
+## Results summary (measured; details in report/report.pdf and results/)
+| | |
+|---|---|
+| Cleaning | 3,000 in: 129 not JSON, 5 bad keys, 3 bad intent, 250 bad slot, 39 duplicates, **2,574 kept** (train.sha256 reproducible) |
+| Validation full-frame | teacher 41%, untrained Pythia 0%, **student v1 38%** (JSON validity 100%), v2 43% |
+| Container at 1 CPU / 1 GiB | 50/50 OK, peak memory 568 MiB, p50 476 ms, image 1.34 GB, no weights inside |
+| Kubernetes | cold start median 9 s; recovery 13 s with 0 failures; rolling update 0.32% failed; LB 50.2/49.8%; HPA 1-2-1 |
+| Load test (standard) | 432 requests, 0% errors, p50 1,100 ms, p95 1,300 ms, 3.63 req/s |
+| Cost | 0.605 INR per 1,000 requests (2 replicas x (1 vCPU + 1 GiB) = 7.90 INR/h) |
+| CI | pass: https://github.com/KuldeepIsharwal/kd-cloud-parser/actions/runs/42349981408 / gate fail (untrained): https://github.com/KuldeepIsharwal/kd-cloud-parser/actions/runs/42350184923 |

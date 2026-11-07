@@ -1,0 +1,15 @@
+CI run with the trained model from the GitHub Release (all stages pass):
+https://github.com/KuldeepIsharwal/kd-cloud-parser/actions/runs/42349981408
+[90m7:08AM[0m [32mINF[0m 4 commits scanned.
+[90m7:08AM[0m [32mINF[0m no leaks found
+pythia70m-kd-v1.tar.gz: OK
+  "json_validity": 100.0,
+  "full_frame": 38.0,
+  "json_validity": 100.0,
+  "full_frame": 38.0,
+
+CI run with the untrained Pythia-70M (workflow_dispatch model=untrained), fails at the quality gate:
+https://github.com/KuldeepIsharwal/kd-cloud-parser/actions/runs/42350184923
+QUALITY GATE FAILED: json_validity 0.0 < 95.0
+  "json_validity": 0.0,
+  "full_frame": 0.0,

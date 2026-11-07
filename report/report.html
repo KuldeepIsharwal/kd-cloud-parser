@@ -24,7 +24,7 @@ code { font-family: Consolas, monospace; font-size: 8.6pt; background: #f3f3f3; 
 <h1>Knowledge Distillation and Deployment of a Command-Parsing LM on a Local Cloud</h1>
 <div class="meta">Cloud Computing (CS3081) mini project. <b>Kuldeep Isharwal</b>, roll number <b>230103038</b>.<br>
 Repository: <b>https://github.com/KuldeepIsharwal/kd-cloud-parser</b> (commit tagged <code>final</code>).
-Model release: <b>…/releases/tag/model-v1</b><br>
+Model release: <b>https://github.com/KuldeepIsharwal/kd-cloud-parser/releases/tag/model-v1</b><br>
 Environment (<span class="m">measured</span>): Windows 11 laptop running WSL2 Ubuntu 24.04 with 16 vCPU and 11 GB RAM for WSL. Docker 29.1.3, k3d 5.7.5,
 k3s v1.30.6, kubectl 1.31.4, Ollama 0.5.4 (container), Python 3.12, torch 2.5.1+cpu, transformers 4.46.3. No GPU.</div>
 
@@ -209,16 +209,16 @@ A stateless NACL cannot tell a reply from a new connection, so the security grou
 <li>builds and imports the image;</li>
 <li>applies the manifests and waits until <code>/parse</code> answers through the Ingress.</li>
 </ul>
-<p><code>make down</code> runs <code>k3d cluster delete</code>. The result of a fresh-clone test is in <code>results/task6_fresh_clone_make_up.txt</code>.</p>
+<p><code>make down</code> runs <code>k3d cluster delete</code>. <span class="m">Measured</span>: after <code>make down</code> ("Successfully deleted cluster kdcloud"), a fresh clone + <code>make up</code> finished in <b>7 min 24 s</b> with exit 0. Both release tarballs passed the SHA-256 check, and <code>/parse</code> returned 200 through the Ingress [<code>task6_fresh_clone_make_up.txt</code>, <code>task6_make_down.txt</code>].</p>
 <p><b>CI</b> (<code>.github/workflows/ci.yml</code>) runs in this order: <b>lint</b> (ruff) → <b>unit tests</b> (16 pytest tests covering sharding, every <code>clean.py</code>
 rejection reason, determinism, the service API and headers, fault injection, invalid outputs, readiness, subnets and NACL) → <b>model evaluation</b>
 (<code>gh release download model-v1</code>, verify the tarball's SHA-256 against <code>v1.model.sha256</code>, predict on <code>validation.jsonl</code>, run <code>score.py</code>) →
 <b>quality gate</b> (<code>score.py --min-validity 95</code>). A separate <b>gitleaks</b> job scans the full history.
 A <code>workflow_dispatch</code> input <code>model=untrained</code> swaps in the base Pythia-70M.</p>
 <ul>
-<li>Passing run (trained model): <b>RUN_PASS_URL</b>.</li>
-<li><b>Run failing at the quality gate</b> (untrained model, 0% validity): <b>RUN_FAIL_URL</b>.</li>
-<li>gitleaks result: <b>GITLEAKS_RESULT</b>.</li>
+<li>Passing run (trained model): https://github.com/KuldeepIsharwal/kd-cloud-parser/actions/runs/42349981408 (release asset checksum OK, validity 100, full frame 38, gate passed).</li>
+<li><b>Run failing at the quality gate</b> (untrained model, 0% validity): <b>https://github.com/KuldeepIsharwal/kd-cloud-parser/actions/runs/42350184923</b> (<code>QUALITY GATE FAILED: json_validity 0.0 <b>RUN_FAIL_URL</b>lt; 95.0</code>).</li>
+<li>gitleaks result: "4 commits scanned. no leaks found" [<code>task6_ci_runs.txt</code>].</li>
 </ul>
 <p><code>AI_USE.md</code> lists the AI tool used and how each output was checked.</p>
 <p><b>Limitations / improvements.</b> CI evaluates on 100 validation examples only, and the gate checks only validity. Adding a full-frame threshold
@@ -251,7 +251,7 @@ In the rolling-update run (951 requests) the same SLO would allow 9 failures and
 <tr><td>Latency and throughput</td><td>p50 1,100 ms, p95 1,300 ms, 3.63 req/s with 2 Pods; 476 ms p50 for one sequential client</td><td>One request at a time per Pod; under load ~60% of latency is queueing</td><td>Batching, ONNX/int8, KV-cache reuse of the shared prompt prefix, more replicas</td></tr>
 <tr><td>Resource utilisation</td><td>~1,005m CPU per Pod under load (100% of limit); memory 503–765 MiB of 1 GiB; peak 568 MiB in Docker at 1 CPU</td><td>CPU-bound; memory grows under concurrency and leaves ~25% headroom</td><td>Quantise to int8 (smaller RAM), CPU limit &gt; 1 with more torch threads</td></tr>
 <tr><td>Reliability and recovery</td><td>Recovery 13 s with 0 failures; rolling update 0.32% failed; cold start median 9 s</td><td>Single node: no machine-level fault tolerance; k3s container once stopped and needed a manual restart</td><td>Multi-node cluster, PodDisruptionBudget, anti-affinity, a restart watchdog</td></tr>
-<tr><td>Security and cost</td><td>0.605 INR / 1,000 requests at 7.90 INR/h; Secrets only via the K8s Secret; gitleaks result in CI</td><td>Secrets are base64, not encrypted at rest; plain HTTP; replicas billed even when idle</td><td>Sealed Secrets/KMS, TLS on the Ingress, scale-to-zero or a lower min replica count off-peak</td></tr></table>
+<tr><td>Security and cost</td><td>0.605 INR / 1,000 requests at 7.90 INR/h; Secrets only via the K8s Secret; gitleaks: no leaks found</td><td>Secrets are base64, not encrypted at rest; plain HTTP; replicas billed even when idle</td><td>Sealed Secrets/KMS, TLS on the Ingress, scale-to-zero or a lower min replica count off-peak</td></tr></table>
 
 <h3>References</h3>
 <p style="font-size:8.6pt">Kim &amp; Rush, Sequence-Level Knowledge Distillation, EMNLP 2016. Hinton et al., Distilling the Knowledge in a Neural Network, 2015.

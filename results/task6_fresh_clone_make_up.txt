@@ -1,0 +1,183 @@
+$ git clone https://github.com/KuldeepIsharwal/kd-cloud-parser.git && cd kd-cloud-parser && make up
+Sat Nov  7 07:14:25 UTC 2026
+python3 -m venv .venv
+.venv/bin/python -m pip install -q --upgrade pip
+.venv/bin/python -m pip install -q -r training/requirements.txt -r requirements-dev.txt
+touch .venv/.done
+k3d cluster list kdcloud >/dev/null 2>&1 || k3d cluster create --config cluster/k3d.yaml
+[36mINFO[0m[0000] Using config file cluster/k3d.yaml (k3d.io/v1alpha5#simple) 
+[36mINFO[0m[0000] portmapping '8080:80' targets the loadbalancer: defaulting to [servers:*:proxy agents:*:proxy] 
+[36mINFO[0m[0000] portmapping '8333:30333' targets the loadbalancer: defaulting to [servers:*:proxy agents:*:proxy] 
+[36mINFO[0m[0000] Prep: Network                                
+[36mINFO[0m[0000] Created network 'k3d-kdcloud'                
+[36mINFO[0m[0000] Created image volume k3d-kdcloud-images      
+[36mINFO[0m[0000] Starting new tools node...                   
+[36mINFO[0m[0001] Creating node 'k3d-kdcloud-server-0'         
+[36mINFO[0m[0034] Creating LoadBalancer 'k3d-kdcloud-serverlb' 
+[36mINFO[0m[0034] Starting node 'k3d-kdcloud-tools'            
+[36mINFO[0m[0035] Using the k3d-tools node to gather environment information 
+[36mINFO[0m[0036] HostIP: using network gateway 172.18.0.1 address 
+[36mINFO[0m[0036] Starting cluster 'kdcloud'                   
+[36mINFO[0m[0036] Starting servers...                          
+[36mINFO[0m[0037] Starting node 'k3d-kdcloud-server-0'         
+[36mINFO[0m[0041] All agents already running.                  
+[36mINFO[0m[0041] Starting helpers...                          
+[36mINFO[0m[0041] Starting node 'k3d-kdcloud-serverlb'         
+[36mINFO[0m[0048] Injecting records for hostAliases (incl. host.k3d.internal) and for 2 network members into CoreDNS configmap... 
+[36mINFO[0m[0050] Cluster 'kdcloud' created successfully!      
+[36mINFO[0m[0051] You can now use it like this:                
+kubectl cluster-info
+bash scripts/make_secrets.sh
+secret/seaweedfs-s3-config created
+secret/s3-credentials created
+secret/s3-credentials created
+kubectl apply -f k8s/data/seaweedfs.yaml
+namespace/data configured
+persistentvolumeclaim/seaweedfs-data created
+deployment.apps/seaweedfs created
+service/seaweedfs-s3 created
+bash scripts/make_secrets.sh
+secret/seaweedfs-s3-config configured
+secret/s3-credentials configured
+secret/s3-credentials configured
+kubectl -n data rollout status deploy/seaweedfs --timeout=300s
+Waiting for deployment spec update to be observed...
+Waiting for deployment spec update to be observed...
+Waiting for deployment "seaweedfs" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "seaweedfs" rollout to finish: 0 of 1 updated replicas are available...
+deployment "seaweedfs" successfully rolled out
+.venv/bin/python scripts/s3_tool.py mb datasets models
+bucket datasets ok
+bucket models ok
+.venv/bin/python scripts/s3_tool.py put data/commands_pool.jsonl s3://datasets/commands_pool.jsonl
+uploaded data/commands_pool.jsonl -> s3://datasets/commands_pool.jsonl
+for f in data/teacher/shard-*.jsonl; do \
+  .venv/bin/python scripts/s3_tool.py put $f s3://datasets/teacher/$(basename $f); done
+uploaded data/teacher/shard-0.jsonl -> s3://datasets/teacher/shard-0.jsonl
+uploaded data/teacher/shard-1.jsonl -> s3://datasets/teacher/shard-1.jsonl
+uploaded data/teacher/shard-2.jsonl -> s3://datasets/teacher/shard-2.jsonl
+uploaded data/teacher/shard-3.jsonl -> s3://datasets/teacher/shard-3.jsonl
+.venv/bin/python scripts/s3_tool.py put data/v1/train.jsonl s3://datasets/v1/train.jsonl
+uploaded data/v1/train.jsonl -> s3://datasets/v1/train.jsonl
+.venv/bin/python scripts/s3_tool.py put data/v1/train.sha256 s3://datasets/v1/train.sha256
+uploaded data/v1/train.sha256 -> s3://datasets/v1/train.sha256
+bash scripts/seed_models.sh "https://github.com/KuldeepIsharwal/kd-cloud-parser/releases/download/model-v1" v1 v2
+pythia70m-kd-v1.tar.gz: sha256 OK e8cc884964adb794dcb0d2533fe98349f793443c2c0de4785db32ddd1f046f39
+uploaded build/release/v1/config.json -> s3://models/models/v1/config.json
+uploaded build/release/v1/generation_config.json -> s3://models/models/v1/generation_config.json
+uploaded build/release/v1/model.safetensors -> s3://models/models/v1/model.safetensors
+uploaded build/release/v1/special_tokens_map.json -> s3://models/models/v1/special_tokens_map.json
+uploaded build/release/v1/tokenizer.json -> s3://models/models/v1/tokenizer.json
+uploaded build/release/v1/tokenizer_config.json -> s3://models/models/v1/tokenizer_config.json
+uploaded build/release/v1/version.json -> s3://models/models/v1/version.json
+uploaded build/release/pythia70m-kd-v1.tar.gz -> s3://models/models/v1/pythia70m-kd-v1.tar.gz
+uploaded build/release/v1.model.sha256 -> s3://models/models/v1/model.sha256
+pythia70m-kd-v2.tar.gz: sha256 OK 5e29f9ae935e5db29cb6f5abe8e2d414019f4f85ba5bf9cfb8ada797300f3e08
+uploaded build/release/v2/config.json -> s3://models/models/v2/config.json
+uploaded build/release/v2/generation_config.json -> s3://models/models/v2/generation_config.json
+uploaded build/release/v2/model.safetensors -> s3://models/models/v2/model.safetensors
+uploaded build/release/v2/special_tokens_map.json -> s3://models/models/v2/special_tokens_map.json
+uploaded build/release/v2/tokenizer.json -> s3://models/models/v2/tokenizer.json
+uploaded build/release/v2/tokenizer_config.json -> s3://models/models/v2/tokenizer_config.json
+uploaded build/release/v2/version.json -> s3://models/models/v2/version.json
+uploaded build/release/pythia70m-kd-v2.tar.gz -> s3://models/models/v2/pythia70m-kd-v2.tar.gz
+uploaded build/release/v2.model.sha256 -> s3://models/models/v2/model.sha256
+docker build -t kd-parser:1.1 -f service/Dockerfile .
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 928B done
+#1 DONE 0.1s
+
+#2 [internal] load metadata for docker.io/library/python:3.12.8-slim
+#2 DONE 2.0s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.1s
+
+#4 [internal] load build context
+#4 transferring context: 12.19kB 0.0s done
+#4 DONE 0.1s
+
+#5 [1/7] FROM docker.io/library/python:3.12.8-slim@sha256:2199a62885a12290dc9c5be3ca0681d367576ab7bf037da120e564723292a2f0
+#5 resolve docker.io/library/python:3.12.8-slim@sha256:2199a62885a12290dc9c5be3ca0681d367576ab7bf037da120e564723292a2f0 0.1s done
+#5 DONE 0.1s
+
+#6 [4/7] RUN pip install --no-cache-dir -r /app/requirements.txt     && find /usr/local/lib/python3.12 -name "__pycache__" -type d -prune -exec rm -rf {} +
+#6 CACHED
+
+#7 [5/7] COPY service/app.py /app/app.py
+#7 CACHED
+
+#8 [2/7] WORKDIR /app
+#8 CACHED
+
+#9 [6/7] COPY training/common.py /app/common.py
+#9 CACHED
+
+#10 [3/7] COPY service/requirements.txt /app/requirements.txt
+#10 CACHED
+
+#11 [7/7] COPY data/schema.json /app/schema.json
+#11 CACHED
+
+#12 exporting to image
+#12 exporting layers done
+#12 exporting manifest sha256:12a369c6b31f2d71155c4394f37ce46555fa937c56a55834b99d77729254f783 done
+#12 exporting config sha256:bf6394e92af3ea1dda119f01b80110970bb5a65a6994e4824a2252bc4f195a61 done
+#12 exporting attestation manifest sha256:ff6eb5d52fc08e25f4eb468d29f4c81d14f7aa18ffd8efa27d520339199a44e6
+#12 exporting attestation manifest sha256:ff6eb5d52fc08e25f4eb468d29f4c81d14f7aa18ffd8efa27d520339199a44e6 0.1s done
+#12 exporting manifest list sha256:347bd378e1c64bcc91ae4132c0fa574a8693826804bc366b5c62b9f8ad158b5a 0.0s done
+#12 naming to docker.io/library/kd-parser:1.1
+#12 naming to docker.io/library/kd-parser:1.1 0.0s done
+#12 unpacking to docker.io/library/kd-parser:1.1 0.0s done
+#12 DONE 0.2s
+k3d image import kd-parser:1.1 -c kdcloud
+[36mINFO[0m[0000] Importing image(s) into cluster 'kdcloud'    
+[36mINFO[0m[0001] Starting new tools node...                   
+[36mINFO[0m[0002] Starting node 'k3d-kdcloud-tools'            
+[36mINFO[0m[0002] Saving 1 image(s) from runtime...            
+[36mINFO[0m[0007] Importing images into nodes...               
+[36mINFO[0m[0007] Importing images from tarball '/k3d/images/k3d-kdcloud-images-20261107072108.tar' into node 'k3d-kdcloud-server-0'... 
+[36mINFO[0m[0024] Removing the tarball(s) from image volume... 
+[36mINFO[0m[0025] Removing k3d-tools node...                   
+[36mINFO[0m[0031] Successfully imported image(s)               
+[36mINFO[0m[0031] Successfully imported 1 image(s) into 1 cluster(s) 
+kubectl apply -f k8s/app/parser.yaml
+namespace/app configured
+deployment.apps/parser created
+service/parser created
+ingress.networking.k8s.io/parser created
+horizontalpodautoscaler.autoscaling/parser created
+kubectl -n app rollout status deploy/parser --timeout=600s
+Waiting for deployment "parser" rollout to finish: 0 of 2 updated replicas are available...
+Waiting for deployment "parser" rollout to finish: 1 of 2 updated replicas are available...
+deployment "parser" successfully rolled out
+Ready: curl -s -X POST localhost:8080/parse -H 'Content-Type: application/json' -d '{"text":"what is the weather in london"}'
+
+real	7m23.730s
+user	0m43.372s
+sys	0m21.445s
+exit=0
+Sat Nov  7 07:21:51 UTC 2026
+HTTP/1.1 200 OK
+Content-Length: 71
+Content-Type: application/json
+Date: Sat, 07 Nov 2026 07:21:51 GMT
+Server: uvicorn
+X-Model-Version: v1
+X-Served-By: parser-8fbbd7c5f-8ljk8
+
+{"intent":"alarm_set","date":"tomorrow","time":"seven am","place":null}
+NAMESPACE     NAME                                      READY   STATUS      RESTARTS   AGE
+app           parser-8fbbd7c5f-4xssd                    1/1     Running     0          15s
+app           parser-8fbbd7c5f-8ljk8                    1/1     Running     0          15s
+data          seaweedfs-6b4659488b-6w2x8                1/1     Running     0          4m47s
+kube-system   coredns-7b98449c4-4v57f                   1/1     Running     0          4m47s
+kube-system   helm-install-traefik-crd-hnk9v            0/1     Completed   0          4m47s
+kube-system   helm-install-traefik-ff6h9                0/1     Completed   1          4m47s
+kube-system   local-path-provisioner-595dcfc56f-6m42q   1/1     Running     0          4m47s
+kube-system   metrics-server-cdcc87586-8l6gd            1/1     Running     0          4m47s
+kube-system   svclb-traefik-270e8f20-mtzzj              2/2     Running     0          3m54s
+kube-system   traefik-d7c9c5778-cwq48                   1/1     Running     0          3m54s

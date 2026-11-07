@@ -1,5 +1,6 @@
 == Measured (results/loadtest_stats.csv, standard run: 4 users, 2 min, through the Ingress)
-requests=432 failures=0 error_rate=0.00% p50=1100 ms p95=1300 ms throughput=3.628 req/s
+requests=432 failures=0 error_rate=0.00%
+p50=1100 ms p95=1300 ms throughput=3.628 req/s
 
 == Cost (rates from data/rate_card.json, currency INR; replica billed for its limits)
 per replica: 1.0 vCPU x 3.5 + 1.0 GiB x 0.45 = 3.95 INR/h

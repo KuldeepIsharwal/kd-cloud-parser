@@ -15,9 +15,11 @@ per_hour = rps * 3600
 cost_1000 = hourly / per_hour * 1000
 
 print("== Measured (results/loadtest_stats.csv, standard run: 4 users, 2 min, through the Ingress)")
-print(f"requests={reqs} failures={fails} error_rate={100 * fails / reqs:.2f}% p50={p50} ms p95={p95} ms throughput={rps:.3f} req/s")
+print(f"requests={reqs} failures={fails} error_rate={100 * fails / reqs:.2f}%")
+print(f"p50={p50} ms p95={p95} ms throughput={rps:.3f} req/s")
 print("\n== Cost (rates from data/rate_card.json, currency INR; replica billed for its limits)")
-print(f"per replica: {cpu_limit} vCPU x {rate['vcpu_hour']} + {mem_limit_gib} GiB x {rate['gib_memory_hour']} = {per_replica:.2f} INR/h")
+print(f"per replica: {cpu_limit} vCPU x {rate['vcpu_hour']} + {mem_limit_gib} GiB x {rate['gib_memory_hour']}"
+      f" = {per_replica:.2f} INR/h")
 print(f"all replicas: {replicas} x {per_replica:.2f} = {hourly:.2f} INR/h")
 print(f"requests served per hour: {rps:.4f} req/s x 3600 = {per_hour:.1f}")
 print(f"cost per 1,000 requests = {hourly:.2f} / {per_hour:.1f} x 1000 = {cost_1000:.4f} INR")

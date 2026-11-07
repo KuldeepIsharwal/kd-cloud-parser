@@ -1,0 +1,50 @@
+### k3d cluster
+NAME      SERVERS   AGENTS   LOADBALANCER
+kdcloud   1/1       0/0      true
+NAME                   STATUS   ROLES                  AGE   VERSION        INTERNAL-IP   EXTERNAL-IP   OS-IMAGE           KERNEL-VERSION                       CONTAINER-RUNTIME
+k3d-kdcloud-server-0   Ready    control-plane,master   21h   v1.30.6+k3s1   172.18.0.2    <none>        K3s v1.30.6+k3s1   5.15.167.4-microsoft-standard-WSL2   containerd://1.7.22-k3s1
+
+### namespace data
+NAME                        READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/seaweedfs   1/1     1            1           21h
+
+NAME                             READY   STATUS    RESTARTS      AGE
+pod/seaweedfs-6b4659488b-kf6d7   1/1     Running   1 (40s ago)   20h
+
+NAME                   TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE
+service/seaweedfs-s3   NodePort   10.43.104.187   <none>        8333:30333/TCP   21h
+
+NAME                                   STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+persistentvolumeclaim/seaweedfs-data   Bound    pvc-d6ad9acf-c9c6-4a19-929f-ab5e907d60c6   5Gi        RWO            local-path     <unset>                 21h
+
+### buckets
+datasets
+models
+
+### s3://datasets
+      197541  s3://datasets/commands_pool.jsonl
+      128956  s3://datasets/teacher/shard-0.jsonl
+      129084  s3://datasets/teacher/shard-1.jsonl
+      128825  s3://datasets/teacher/shard-2.jsonl
+      129503  s3://datasets/teacher/shard-3.jsonl
+
+### worker job in namespace pipeline
+NAME               STATUS     COMPLETIONS   DURATION   AGE   CONTAINERS   IMAGES          SELECTOR
+teacher-labeller   Complete   4/4           8h         20h   worker       kd-worker:1.0   batch.kubernetes.io/controller-uid=a4557dfd-6ec3-48f2-942b-508c9b390e71
+NAME                       READY   STATUS      RESTARTS   AGE   IP       NODE                   NOMINATED NODE   READINESS GATES   JOB-COMPLETION-INDEX
+teacher-labeller-0-gtkwh   0/1     Completed   0          20h   <none>   k3d-kdcloud-server-0   <none>           <none>            0
+teacher-labeller-1-8f975   0/1     Completed   0          20h   <none>   k3d-kdcloud-server-0   <none>           <none>            1
+teacher-labeller-2-m546f   0/1     Completed   0          20h   <none>   k3d-kdcloud-server-0   <none>           <none>            2
+teacher-labeller-3-zk74k   0/1     Completed   0          20h   <none>   k3d-kdcloud-server-0   <none>           <none>            3
+--- pod/teacher-labeller-0-gtkwh SHARD_INDEX=0
+shard 0/4: 750 commands, 0 already done
+shard 0: finished, 750 records in s3://datasets/teacher/shard-0.jsonl
+--- pod/teacher-labeller-1-8f975 SHARD_INDEX=1
+shard 1/4: 750 commands, 0 already done
+shard 1: finished, 750 records in s3://datasets/teacher/shard-1.jsonl
+--- pod/teacher-labeller-2-m546f SHARD_INDEX=2
+shard 2/4: 750 commands, 0 already done
+shard 2: finished, 750 records in s3://datasets/teacher/shard-2.jsonl
+--- pod/teacher-labeller-3-zk74k SHARD_INDEX=3
+shard 3/4: 750 commands, 0 already done
+shard 3: finished, 750 records in s3://datasets/teacher/shard-3.jsonl

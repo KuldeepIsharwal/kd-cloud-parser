@@ -1,0 +1,25 @@
+# Local cluster for the project: one k3s server node (single machine).
+# Create with:  k3d cluster create --config cluster/k3d.yaml
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: kdcloud
+servers: 1
+agents: 0
+image: rancher/k3s:v1.30.6-k3s1
+ports:
+  # Traefik ingress (HTTP 80 in the cluster) -> http://localhost:8080 on the laptop
+  - port: 8080:80
+    nodeFilters:
+      - loadbalancer
+  # SeaweedFS S3 NodePort 30333 -> http://localhost:8333 on the laptop (for uploads from the host)
+  - port: 8333:30333
+    nodeFilters:
+      - loadbalancer
+options:
+  k3d:
+    wait: true
+    timeout: "180s"
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true

@@ -1,0 +1,5 @@
+data/teacher/shard-0.jsonl: 750 records, matches line%4==0: True
+data/teacher/shard-1.jsonl: 750 records, matches line%4==1: True
+data/teacher/shard-2.jsonl: 750 records, matches line%4==2: True
+data/teacher/shard-3.jsonl: 750 records, matches line%4==3: True
+pool ids: 3000, ids in shards: 3000, missing: 0, repeated: 0

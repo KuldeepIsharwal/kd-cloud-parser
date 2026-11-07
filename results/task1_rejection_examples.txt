@@ -1,0 +1,28 @@
+== bad_slot
+  C0005 | do i have meeting with steve this week
+      '{"intent": "calendar_query", "date": "this week", "time": null, "place": "steve\'s location or office"}'
+  C0081 | olly remind me my mom's birthday a week before
+      '{"intent": "calendar_set", "date": "a week before today", "time": null, "place": null}'
+  C0089 | have i set any alarms in the morning
+      '{"intent": "alarm_query", "date": "today", "time": "morning", "place": null}'
+== not_json
+  C0021 | what is the temperature right now
+      '{'
+  C0117 | what about this event
+      '{'
+  C0145 | can you read my meetings today
+      '```json'
+== bad_keys
+  C0881 | what is the timer in japan
+      '{"intent": "datetime_query", "date": null, "time": "japan" }'
+  C0682 | will there be any seventy degree days next week
+      '{"intent": "datetime_query", "date": "next week", "time": "seventy degrees"}'
+  C2230 | its very dangerous one
+      '{"intent": null}'
+== bad_intent
+  C2381 | one hundred thousand two hundred and seventeenth
+      '{"intent": null, "date": null, "time": null, "place": null}'
+  C2348 | it is very hot today is not it
+      '{"intent": null, "date": "today", "time": null, "place": null}'
+  C2756 | one hundred and fifty thousand two hundred and seventeenth
+      '{"intent": null, "date": null, "time": "one hundred and fifty thousand two hundred and seventeen", "place": null}'

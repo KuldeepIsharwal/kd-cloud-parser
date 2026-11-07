@@ -1,0 +1,12 @@
+read 4 shard objects: ['teacher/shard-0.jsonl', 'teacher/shard-1.jsonl', 'teacher/shard-2.jsonl', 'teacher/shard-3.jsonl']
+wrote s3://datasets/v1/train.jsonl and train.sha256
+{
+  "input": 3000,
+  "not_json": 129,
+  "bad_keys": 5,
+  "bad_intent": 3,
+  "bad_slot": 250,
+  "duplicate": 39,
+  "kept": 2574
+}
+sha256 2810b6a5bc1bb06d0c37215cb658747c935cd3dc41d3862881d1d7b2fd580a0a

@@ -1,0 +1,23 @@
+# Second model version (Task 2, step 5): same data, different seed and two more epochs.
+version: v2
+base_model: EleutherAI/pythia-70m
+base_model_revision: main
+train_file: data/v1/train.jsonl
+max_train_records: 1500
+output_dir: build/models/v2
+
+seed: 7
+learning_rate: 0.0005
+batch_size: 16
+epochs: 12
+max_seq_length: 96
+weight_decay: 0.01
+warmup_ratio: 0.05
+loss_on_prompt: false
+
+library_versions:
+  python: "3.12"
+  torch: "2.5.1+cpu"
+  transformers: "4.46.3"
+  tokenizers: "0.20.3"
+  pyyaml: "6.0.2"

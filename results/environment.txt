@@ -1,0 +1,1 @@
+env: Windows 11 + WSL2 Ubuntu 24.04.1, 16 vCPU, 11 GB RAM for WSL; Docker 29.1.3, k3d 5.7.5, k3s v1.30.6+k3s1, kubectl 1.31.4, Ollama 0.5.4 (container), Python 3.12.3, torch 2.5.1+cpu, transformers 4.46.3

@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>CS3081 Mini Project Report</title>
+<style>
+@page { size: A4; margin: 15mm 14mm 15mm 14mm; }
+body { font-family: "Segoe UI", Calibri, Arial, sans-serif; font-size: 9.6pt; line-height: 1.36; color: #111; }
+h1 { font-size: 15pt; margin: 0 0 2px; }
+h2 { font-size: 11.6pt; margin: 11px 0 4px; border-bottom: 1.5px solid #333; padding-bottom: 1px; }
+h3 { font-size: 10pt; margin: 7px 0 3px; }
+p { margin: 3px 0 5px; }
+ul { margin: 2px 0 5px 16px; padding: 0; } li { margin: 1px 0; }
+table { border-collapse: collapse; width: 100%; margin: 4px 0 7px; font-size: 8.8pt; }
+th, td { border: 1px solid #999; padding: 2px 5px; text-align: left; vertical-align: top; }
+th { background: #eee; }
+td.n, th.n { text-align: right; }
+code { font-family: Consolas, monospace; font-size: 8.6pt; background: #f3f3f3; padding: 0 2px; }
+.meta { font-size: 9pt; color: #333; margin-bottom: 6px; }
+.m { color: #0a5; font-weight: 600; }  /* measured */
+.a { color: #a50; font-weight: 600; }  /* assumption */
+.box { border: 1px solid #bbb; background: #fafafa; padding: 4px 7px; margin: 5px 0; font-size: 9pt; }
+.pb { page-break-before: always; }
+</style></head><body>
+
+<h1>Knowledge Distillation and Deployment of a Command-Parsing LM on a Local Cloud</h1>
+<div class="meta">Cloud Computing (CS3081) mini project. <b>Kuldeep Isharwal</b>, roll number <b>230103038</b>.<br>
+Repository: <b>https://github.com/KuldeepIsharwal/kd-cloud-parser</b> (commit tagged <code>final</code>).
+Model release: <b>…/releases/tag/model-v1</b><br>
+Environment (<span class="m">measured</span>): Windows 11 laptop running WSL2 Ubuntu 24.04 with 16 vCPU and 11 GB RAM for WSL. Docker 29.1.3, k3d 5.7.5,
+k3s v1.30.6, kubectl 1.31.4, Ollama 0.5.4 (container), Python 3.12, torch 2.5.1+cpu, transformers 4.46.3. No GPU.</div>
+
+<div class="box"><b>Reading guide.</b> <span class="m">Measured</span> means the number was produced by a command whose output is
+saved in <code>results/</code> (file names given in brackets). <span class="a">Assumption</span> marks values I did not measure:
+design choices, prices from the rate card, or reasoning. All scores come from the kit's <code>score.py</code>, and all load numbers from the
+kit's <code>locustfile.py</code> with the standard command (4 users, 2 min, through the Ingress at <code>localhost:8080</code>).</div>
+
+<h3>Architecture</h3>
+<p>A single-node k3d cluster (<code>cluster/k3d.yaml</code>) runs three namespaces:</p>
+<ul>
+<li><code>data</code>: SeaweedFS in one <code>weed server -s3</code> Pod on a 5 Gi local-path PVC, exposed as <code>seaweedfs-s3:8333</code> and on NodePort 30333, which maps to <code>localhost:8333</code> on the laptop.</li>
+<li><code>pipeline</code>: an Indexed Job of 4 labelling workers.</li>
+<li><code>app</code>: the parser Deployment, Service, Traefik Ingress and HPA.</li>
+</ul>
+<p>The teacher (phi3.5 in Ollama) runs on the laptop, outside the cluster. A selector-less Service <code>teacher.pipeline</code> with a
+manual Endpoints entry points at the Docker gateway. Model weights move this way: training on the laptop, then <code>s3://models/models/vN/</code>, then the
+service downloads them at start-up. The same tarballs are published as GitHub Release assets. S3 credentials are generated randomly by
+<code>scripts/make_secrets.sh</code> into a git-ignored folder and reach Pods only through Kubernetes Secrets.</p>
+
+<h2>Task 1: Object storage and parallel teacher labelling</h2>
+<p><b>Implementation.</b> The cluster is created from <code>cluster/k3d.yaml</code>. The <code>datasets</code> and <code>models</code> buckets were created with boto3, and
+<code>commands_pool.jsonl</code> was uploaded to <code>datasets</code> [<code>task1_cluster_storage.txt</code>]. The prompt is in <code>prompts/teacher_prompt.txt</code>:
+eight intents with one example each, the three slot rules, 5 few-shot examples (none taken from the validation set), and "reply with the JSON object only".
+<code>worker/worker.py</code> calls <code>/api/generate</code> with <code>temperature 0</code>, <code>seed 42</code>, <code>num_ctx 1024</code> and <code>stop ["\n"]</code>.
+It writes <code>{"id","text","teacher_raw"}</code> to <code>datasets/teacher/shard-&lt;i&gt;.jsonl</code>, re-uploading every 25 records so that a
+restarted Pod resumes instead of starting over.</p>
+<p><b>Sharding (≤ ½ page).</b> The pool is read as a list of lines, and worker <i>i</i> takes every line <i>n</i> with <i>n</i> mod <code>SHARD_COUNT</code> = <i>i</i>.
+The Job uses <code>completionMode: Indexed</code> with <code>completions = parallelism = 4</code>. Kubernetes gives each Pod a unique completion index,
+passed to the container as <code>SHARD_INDEX</code> through the downward API (<code>batch.kubernetes.io/job-completion-index</code>), with
+<code>SHARD_COUNT=4</code>. Modulo sharding needs no coordination and no shared state, gives equal shard sizes (750 each), and spreads
+duplicate commands and topics evenly. Each worker writes only its own object, so there are no write conflicts. Because the shards are disjoint
+and cover every residue, every id lands in exactly one shard. <span class="m">Checked</span>: 3,000 pool ids, 3,000 ids across the shards,
+0 missing, 0 repeated, and each shard equals its residue class [<code>task1_shard_coverage.txt</code>].</p>
+<table><tr><th>Input</th><th>(a) not JSON</th><th>(b) wrong keys</th><th>(c) bad intent</th><th>(d) slot not in command</th><th>(e) duplicates</th><th>Kept</th></tr>
+<tr><td class="n">3,000</td><td class="n">129</td><td class="n">5</td><td class="n">3</td><td class="n">250</td><td class="n">39</td><td class="n"><b>2,574</b></td></tr></table>
+<p><span class="m">Measured</span> [<code>clean_counts.json</code>]: 129 + 5 + 3 + 250 + 39 + 2,574 = 3,000. <code>clean.py</code> checks the reasons in order (first failure counts) and
+removes duplicates among the valid records (smallest id kept, case and whitespace ignored). It writes <code>datasets/v1/train.jsonl</code> in id order plus
+<code>train.sha256</code> = <code>2810b6a5…580a0a</code>. Re-running it on the stored shards reproduces the same checksum [<code>task1_checksum_check.txt</code>: MATCH].</p>
+<p><b>Results / observations.</b> The 4 workers ran concurrently in <code>pipeline</code>, from 07:45 to 16:11 UTC, which is 8 h 26 min of wall time
+(<span class="m">measured</span>). That is ~0.1 commands/s in total. A single sequential call took ~3 s. Four parallel clients sharing one CPU-bound
+Ollama (2 slots) mainly queue, so the parallelism shows the pattern rather than speeding anything up. Typical rejections
+[<code>task1_rejection_examples.txt</code>]:</p>
+<ul><li>(d) invented slots, e.g. <i>place = "steve's location or office"</i>, or <i>date = "today"</i> for "in the morning".</li>
+<li>(a) replies that started pretty-printed (<code>{</code> followed by a newline), which the newline stop cut off.</li>
+<li>(c) <code>"intent": null</code> for out-of-domain text.</li></ul>
+<p><b>Limitations / improvements.</b> The newline stop costs ~4% of replies. Ollama's JSON mode (<code>format: json</code>) or a stop on <code>}</code> would keep them.
+Plain modulo sharding cannot rebalance a slow worker; a work queue would. The first run crashed WSL (out of memory with 4 × 2,048-token
+contexts). I raised the WSL memory limit and set <code>num_ctx 1024</code>, <code>OLLAMA_NUM_PARALLEL=2</code>.</p>
+
+<h2>Task 2: Training the student (sequence-level distillation)</h2>
+<p><b>Implementation.</b> <code>training/train.py</code> fine-tunes <code>EleutherAI/pythia-70m</code> on the <b>first 1,500</b> records of <code>train.jsonl</code>. Each example is
+<code>Command: &lt;text&gt;\nJSON: &lt;teacher reply&gt;&lt;|endoftext|&gt;</code>. The reply is the teacher's JSON re-serialised compactly; the raw reply is kept
+unchanged in <code>teacher_raw</code>. Loss is computed only on the reply tokens. It uses AdamW with a linear schedule and 5% warm-up.
+<code>training/config.yaml</code> records seed 42, lr 5e-4, batch 16, 10 epochs, max length 96 and the library versions. The seed is set in code for
+<code>random</code>, <code>numpy</code> and <code>torch</code>, and deterministic algorithms are on. <code>make train</code> reads only that file; <code>make train SUBSET=50</code>
+finished in 93 s [<code>make_train_subset50.txt</code>]. v2 (<code>training/v2.yaml</code>) uses seed 7 and 12 epochs.</p>
+<p>Each version writes a model + tokenizer + <code>version.json</code>, a deterministic tarball (sorted entries, mtime 0), and <code>vN.model.sha256</code>.
+The first line of that file is the tarball hash; the other lines hash every file. Files are uploaded to <code>s3://models/models/v1|v2/</code>
+[<code>task2_models_bucket.txt</code>] and the tarballs plus checksums are published as Release assets.
+v1 tarball SHA-256 = <code>e8cc8849…046f39</code>, v2 = <code>5e29f9ae…0f3e08</code>.</p>
+<p><b>Training</b> (<span class="m">measured</span>, 16 vCPU): v1 took 2,069 s, with loss 0.889 → 0.541 → 0.263 → … → 0.0078 at epoch 10 (<code>training/loss.csv</code>).
+v2 took 2,202 s, ending at loss 0.0017 (<code>training/loss_v2.csv</code>).</p>
+<table><tr><th>Model (validation.jsonl, 100 commands)</th><th class="n">JSON valid</th><th class="n">Intent</th><th class="n">Date</th><th class="n">Time</th><th class="n">Place</th><th class="n">Full frame</th></tr>
+<tr><td>Teacher phi3.5 (same prompt/settings) [<code>teacher_validation.json</code>]</td><td class="n">96</td><td class="n">84</td><td class="n">72</td><td class="n">73</td><td class="n">79</td><td class="n">41</td></tr>
+<tr><td>Untrained Pythia-70M [<code>untrained_validation.json</code>]</td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n">0</td><td class="n">0</td></tr>
+<tr><td><b>Student v1 (deployed)</b> [<code>student_v1_validation.json</code>]</td><td class="n"><b>100</b></td><td class="n">90</td><td class="n">78</td><td class="n">77</td><td class="n">78</td><td class="n"><b>38</b></td></tr>
+<tr><td>Student v2 [<code>student_v2_validation.json</code>]</td><td class="n">99</td><td class="n">85</td><td class="n">77</td><td class="n">80</td><td class="n">78</td><td class="n">43</td></tr>
+<tr><td>Student v1 / v2, plain greedy decoding [<code>*_greedy_validation.json</code>]</td><td class="n">100 / 98</td><td class="n">90 / 85</td><td class="n">78 / 77</td><td class="n">77 / 80</td><td class="n">78 / 78</td><td class="n">38 / 43</td></tr></table>
+<p><b>What changed.</b> The untrained model continues the text with YAML-like or arbitrary output and never produces the 4-key object (0%).
+After distillation the student almost always emits the schema (100% valid) and reaches 38/41 = 93% of the teacher's full-frame accuracy.
+Its intent accuracy is higher than the teacher's (90 vs 84). That is because the cleaning step removed the teacher's malformed and invented
+answers, so the student learned from a filtered teacher.</p>
+<p>One student failure mattered in deployment. For "do i need to take the umbrella out today", v1 produced the non-existent intent
+<code>weather_remove</code>. <code>score.py</code> still counts that as valid JSON, but the service schema rejects it, so the command failed (HTTP 500) on every
+load-test pass in an early run: 10 of 1,028 requests. I therefore added <b>schema-constrained decoding</b> to <code>training/common.py</code>,
+shared by the service and the evaluator. It forces the opening <code>{"intent": "</code>, picks the intent among the eight allowed values by the model's
+own log-likelihood (one batched forward pass), then generates the slots greedily. Offline scores are unchanged, and v1 now passes the
+service schema on 100/100 validation commands (greedy: 99/100) [<code>schema_check.txt</code>]. v2 still has one degenerate repeating output (V057).</p>
+<h3>Sequence-level vs logit-based distillation</h3>
+<p><b>(a) Sequence-level KD</b> (Kim &amp; Rush, 2016) trains the student with ordinary cross-entropy on the teacher's <i>generated output sequence</i>,
+here the JSON string produced with greedy decoding. The teacher's single best output becomes the hard target, so the student imitates the
+teacher's mode rather than the original labels.
+<b>(b) Logit-based (word-level) KD</b> trains the student to match the teacher's full <i>probability distribution over the vocabulary</i> at
+every position, typically by minimising KL divergence between temperature-softened teacher and student logits. This passes on "dark knowledge":
+which alternatives the teacher considered likely.
+<b>(c) Why it is not possible here.</b> phi3.5 and Pythia-70M use different tokenizers and vocabularies (32k Llama-style vs ~50k GPT-NeoX BPE),
+so their per-token distributions are not over the same symbols and cannot be compared position by position. On top of that, Ollama returns only
+text: the teacher's logits are not exposed. The handout also fixes the setting to stored teacher replies, with the teacher not needed after Task 1.
+<b>(d) Limitation of what I did.</b> The student learns only the teacher's single greedy answer, including its systematic errors. The teacher
+scores just 41% full-frame, and the cleaning step can only remove replies that are malformed or invent text; it cannot remove plausible but wrong
+ones. For example, the teacher writes "five in the morning" where the gold label is "five". So the student's ceiling is close to the teacher's.
+I also trained on only 1,500 examples with no held-out early stopping. The near-zero training loss (0.008) together with flat validation
+accuracy suggests memorisation.</p>
+
+<h2>Task 3: The inference service in a container</h2>
+<p><b>Implementation.</b> <code>service/app.py</code> is a FastAPI app on port 8000.</p>
+<ul>
+<li><code>POST /parse</code> returns only the 4-key object, with headers <code>X-Model-Version</code> = <code>MODEL_VERSION</code> and <code>X-Served-By</code> = Pod name (downward API).</li>
+<li><code>GET /healthz</code> always returns 200.</li>
+<li><code>GET /readyz</code> returns 503 until a background thread has downloaded every object under <code>MODEL_URI</code> from <code>S3_ENDPOINT</code> and loaded the model, then 200.</li>
+<li><code>MAX_NEW_TOKENS</code> bounds generation.</li>
+<li>Every output is checked against <code>schema.json</code> (keys, intent enum, string/null slots). On failure the service returns <code>500 {"error":"invalid_model_output"}</code>; it never returns broken JSON with a 200.</li>
+<li><code>FAULT_INJECT=1</code> replaces the output with <code>not json</code> before the check.</li>
+<li>Credentials come only from <code>AWS_ACCESS_KEY_ID/SECRET</code> environment variables injected from the <code>s3-credentials</code> Secret.</li>
+</ul>
+<p>The image is <code>python:3.12.8-slim</code> plus the CPU-only torch wheel. All 40 Python packages, direct and transitive, are pinned to exact versions in
+<code>service/requirements.txt</code>. It contains no weights and builds with one command (<code>docker build -f service/Dockerfile .</code>, or <code>make image</code>).</p>
+<table><tr><th>Check (<span class="m">measured</span>)</th><th>Result [file]</th></tr>
+<tr><td>Image size / weights in image</td><td>1.34 GB on disk (279 MB compressed content); 0 <code>*.safetensors</code>/<code>*.bin</code> files [<code>task3_image.txt</code>]</td></tr>
+<tr><td>Start-up</td><td><code>/readyz</code> 503 while downloading; log: "model download done: 285,286,534 bytes in 1.75 s", then 200 [<code>task3_api.txt</code>]</td></tr>
+<tr><td><code>docker run --cpus 1 --memory 1g</code>, 50 sequential requests</td><td>50 × HTTP 200; mean 480 ms, p50 476 ms, max 602 ms [<code>task3_50_requests.txt</code>]</td></tr>
+<tr><td>Peak memory (docker stats, sampled during the 50 requests)</td><td><b>567.6 MiB</b> of the 1,024 MiB limit; OOMKilled=false, 0 restarts [<code>task3_peak_memory.txt</code>]</td></tr>
+<tr><td><code>FAULT_INJECT=1</code></td><td><code>HTTP/1.1 500</code>, body <code>{"error":"invalid_model_output"}</code> with both headers [<code>task3_fault_inject.txt</code>]</td></tr></table>
+<p><b>Limitations / improvements.</b> The image is 1.34 GB mostly because of torch. ONNX Runtime or int8 quantisation would roughly halve both the image
+and the RAM, and fp16/bf16 weights would halve the 282 MB download. Generation is serialised by a lock (1 thread per Pod), so per-Pod throughput
+is ~1.8 req/s.</p>
+
+<h2>Task 4: Kubernetes deployment, scaling and reliability</h2>
+<p><b>Implementation</b> (<code>k8s/app/parser.yaml</code>):</p>
+<ul>
+<li>Namespace <code>app</code>; Deployment with 2 replicas, <code>requests cpu 500m / mem 512Mi</code>, <code>limits cpu 1 / mem 1Gi</code>.</li>
+<li>Startup and liveness probes on <code>/healthz</code>; readiness probe on <code>/readyz</code> every 2 s.</li>
+<li>RollingUpdate with <code>maxSurge 1, maxUnavailable 0</code>, and a <code>preStop sleep 8</code> so Traefik removes a Pod before it stops.</li>
+<li>ClusterIP Service; Traefik Ingress <code>/parse</code> → Service.</li>
+<li>HPA: min 1, max 2, CPU 70%, 60 s scale-down window.</li>
+</ul>
+<table><tr><th>Experiment</th><th>Result (<span class="m">measured</span>) [file in results/]</th></tr>
+<tr><td>Ingress</td><td>POST <code>localhost:8080/parse</code> → 200 with <code>X-Model-Version: v1</code>, <code>X-Served-By: parser-…</code> [task4_basics.txt]</td></tr>
+<tr><td>No ready endpoints while loading</td><td>After scaling 0→1: endpoints <code>ready=[] notReady=[10.42.0.x]</code> for ~7 s, until the log shows "model loaded and ready" [task4_readiness.txt]</td></tr>
+<tr><td>HPA 1→2→1</td><td>Load started 06:35:41. CPU reached 70% at 06:36:01 and 200% at 06:36:11, giving <b>2 Pods</b>. Load ended 06:39:41, CPU fell to 0% by 06:40:18, and the HPA returned to <b>1 Pod</b> at 06:41:09. Events: "New size: 2 … above target", "New size: 1 … All metrics below target". 805 requests, 0 failed [task4_hpa_*]</td></tr>
+<tr><td>Rolling update v1→v2, then <code>rollout undo</code></td><td>Under 5 min of load: 951 requests, <b>3 failed = 0.32%</b> (≤ 0.5%). 721 answered by v1 and 228 by v2. All 3 failures were HTTP 500 from v2's degenerate output, not dropped connections. After undo, 5/5 responses show <code>X-Model-Version: v1</code> [task4_rolling_*]</td></tr>
+<tr><td>Recovery</td><td>Pod deleted at 06:52:31 under load: ready 1/2, back to <b>2/2 at 06:52:44 (13 s)</b>; 637 requests, <b>0 failed</b> [task4_recovery_*]</td></tr>
+<tr><td>Cold start (delete all Pods, 3 runs)</td><td>Creation→Ready of the slowest Pod: 10, 8, 9 s, <b>median 9 s</b>. Logs of all 6 new Pods show <code>model download start: s3://models/models/v1</code> … <code>download done: 285286534 bytes</code> [task4_coldstart.txt]</td></tr>
+<tr><td>Load balancing (exactly 2 Ready)</td><td>Standard Locust run through the Ingress: replica A <b>217 (50.2%)</b>, replica B <b>215 (49.8%)</b>, 0 failed [task4_lb_*]</td></tr></table>
+<p><b>Limitations.</b> The cluster is <b>one k3s node on one laptop</b>. Every replica, SeaweedFS and the control plane share one machine,
+one kernel and one disk, so this shows Pod-level self-healing but <b>not fault tolerance across machines</b>: losing the laptop or WSL loses everything.
+I saw this happen. Heavy disk I/O made k3s's SQLite datastore slow (8 s queries), and the server container exited once and did not restart by itself
+(a WSL cgroup error), so I had to run <code>docker start</code>. Other limitations:</p>
+<ul>
+<li>"Start with two replicas" conflicts with HPA min 1: when idle, the HPA scales to 1 within ~1 min.</li>
+<li>metrics-server needs ~60 s after a Pod starts before the HPA has data (<code>&lt;unknown&gt;</code> in events).</li>
+<li>CPU utilisation is measured against the 500m request, so one busy Pod reads 200%.</li>
+<li>SeaweedFS is a single replica on a local-path volume, a single point of failure.</li>
+</ul>
+<p><b>Improvements.</b> A multi-node cluster (3 servers + agents) with Pod anti-affinity, a PodDisruptionBudget, replicated object storage,
+a startupProbe tuned to the cold start, and higher HPA headroom (max &gt; 2).</p>
+
+<h2>Task 5: Subnetting and network access control</h2>
+<table><tr><th>Subnet (need)</th><th>Network</th><th>Prefix</th><th>Usable host range</th><th>Broadcast</th><th class="n">Usable</th></tr>
+<tr><td>app (1,000)</td><td>10.20.0.0</td><td>/22</td><td>10.20.0.1 – 10.20.3.254</td><td>10.20.3.255</td><td class="n">1,022</td></tr>
+<tr><td>public (250)</td><td>10.20.4.0</td><td>/24</td><td>10.20.4.1 – 10.20.4.254</td><td>10.20.4.255</td><td class="n">254</td></tr>
+<tr><td>data (100)</td><td>10.20.5.0</td><td>/25</td><td>10.20.5.1 – 10.20.5.126</td><td>10.20.5.127</td><td class="n">126</td></tr>
+<tr><td>management (20)</td><td>10.20.5.128</td><td>/27</td><td>10.20.5.129 – 10.20.5.158</td><td>10.20.5.159</td><td class="n">30</td></tr></table>
+<p>Working (<code>network/subnets.md</code>): the smallest prefix whose 2<sup>32−p</sup>−2 ≥ need. 1,000 needs 2<sup>10</sup> (/22); 250 needs /24 (2<sup>7</sup>−2 = 126 is too small); 100 needs /25;
+20 needs /27. Placing them largest first, back to back from 10.20.0.0, each block start is naturally aligned. I checked this with Python's <code>ipaddress</code> (<code>network/check_subnets.py</code>).</p>
+<p><b>NACL</b> (<code>network/nacl.json</code>, public subnet):</p>
+<ul>
+<li><b>Inbound:</b> 100 deny all from 198.51.100.0/24; 110 allow tcp 80 from 0.0.0.0/0; 120 allow tcp 443 from 0.0.0.0/0; 130 allow tcp 22 from 10.20.5.128/27; 140 allow tcp 1024–65535 from 10.20.0.0/22 (replies from the app tier); default deny.</li>
+<li><b>Outbound:</b> 100 allow tcp 8000 to 10.20.0.0/22; 110 allow tcp 1024–65535 to 0.0.0.0/0 (replies to clients); default deny.</li>
+</ul>
+<p><code>nacl_sim.py --check</code>: <span class="m">6/6</span> on <code>packets_sample.jsonl</code>, and <span class="m">15/15</span> on 15 edge-case packets I wrote
+(<code>network/packets_extra.jsonl</code>: abusive range on 80 and UDP, SSH from the management, app and outside ranges, ephemeral replies, the wrong protocol).</p>
+<p><b>Why replies need their own rules.</b> A NACL is <b>stateless</b>: it does not remember that it allowed a request, so each reply packet is
+evaluated again on its own. A client's request to port 443 comes back as a reply to the client's ephemeral port (1024–65535), and the LB's request to
+an app server on 8000 comes back to the LB's ephemeral port. Without outbound rule 110 and inbound rule 140, those replies hit the default deny and
+every connection breaks, unlike a stateful security group.
+<b>Why order matters.</b> Rules are evaluated from the lowest number up and the first match wins. 198.51.100.9 → tcp 443 matches both deny 100 and allow 120.
+Because the deny has the lower number, it wins. If it were numbered after 110/120 (say 200), the web allow would match first and the abusive
+range would get through on 80/443.
+<b>Limitation.</b> Rule 110 (outbound ephemeral to anywhere) also allows outbound traffic to high ports such as 5432 on the data tier.
+A stateless NACL cannot tell a reply from a new connection, so the security groups must do that part.</p>
+
+<h2>Task 6: Reproducibility, testing and CI/CD</h2>
+<p><b>Bring-up.</b> <code>git clone … &amp;&amp; cd kd-cloud-parser &amp;&amp; make up</code>, three commands. <code>make up</code> runs these steps:</p>
+<ul>
+<li>creates a venv;</li>
+<li>creates the cluster and deploys SeaweedFS;</li>
+<li>generates the Secrets;</li>
+<li>creates the buckets and uploads the dataset;</li>
+<li>downloads v1/v2 from the Release, verifies their SHA-256 and uploads them to <code>s3://models</code>;</li>
+<li>builds and imports the image;</li>
+<li>applies the manifests and waits until <code>/parse</code> answers through the Ingress.</li>
+</ul>
+<p><code>make down</code> runs <code>k3d cluster delete</code>. The result of a fresh-clone test is in <code>results/task6_fresh_clone_make_up.txt</code>.</p>
+<p><b>CI</b> (<code>.github/workflows/ci.yml</code>) runs in this order: <b>lint</b> (ruff) → <b>unit tests</b> (16 pytest tests covering sharding, every <code>clean.py</code>
+rejection reason, determinism, the service API and headers, fault injection, invalid outputs, readiness, subnets and NACL) → <b>model evaluation</b>
+(<code>gh release download model-v1</code>, verify the tarball's SHA-256 against <code>v1.model.sha256</code>, predict on <code>validation.jsonl</code>, run <code>score.py</code>) →
+<b>quality gate</b> (<code>score.py --min-validity 95</code>). A separate <b>gitleaks</b> job scans the full history.
+A <code>workflow_dispatch</code> input <code>model=untrained</code> swaps in the base Pythia-70M.</p>
+<ul>
+<li>Passing run (trained model): <b>RUN_PASS_URL</b>.</li>
+<li><b>Run failing at the quality gate</b> (untrained model, 0% validity): <b>RUN_FAIL_URL</b>.</li>
+<li>gitleaks result: <b>GITLEAKS_RESULT</b>.</li>
+</ul>
+<p><code>AI_USE.md</code> lists the AI tool used and how each output was checked.</p>
+<p><b>Limitations / improvements.</b> CI evaluates on 100 validation examples only, and the gate checks only validity. Adding a full-frame threshold
+and building and smoke-testing the container in CI would catch more regressions.</p>
+
+<h2>Task 7: Performance, cost and review</h2>
+<p><b>Standard load test</b> (<span class="m">measured</span>, 2 Ready replicas, through the Ingress) [<code>loadtest_stats.csv</code>, <code>task7_locust_stdout.txt</code>,
+<code>task7_top_pods.txt</code>]:</p>
+<ul>
+<li>432 requests, <b>0 failures (error rate 0.00%)</b>.</li>
+<li><b>p50 1,100 ms, p95 1,300 ms</b> (max 2,353 ms); throughput <b>3.63 req/s</b>.</li>
+<li><code>kubectl top</code> during the load: each Pod at <b>1,002–1,008m CPU</b> (pinned at its 1-core limit) and <b>503–765 MiB</b> memory (362/355 MiB when idle).</li>
+<li>Cold start: median <b>9 s</b> (Task 4).</li>
+<li>Requests split 217/217 between the two replicas [<code>loadtest_headers.json</code>].</li>
+</ul>
+<p><b>Cost</b> (<span class="a">rates from rate_card.json, INR; each replica billed for its limits</span>) [<code>task7_cost_slo.txt</code>]:</p>
+<ul>
+<li>Per replica: 1 vCPU × 3.50 + 1 GiB × 0.45 = 3.95 INR/h.</li>
+<li>2 replicas: 7.90 INR/h.</li>
+<li>Requests per hour: 3.6276 req/s × 3,600 = 13,059.2.</li>
+<li><b>Cost per 1,000 requests = 7.90 / 13,059.2 × 1,000 = 0.605 INR.</b></li>
+</ul>
+<p>(<span class="a">Assumption</span>: the replicas are fully busy. At lower load the same hourly cost is spread over fewer requests.)</p>
+<p><b>SLO.</b> 99% of <code>POST /parse</code> requests return HTTP 200 within 30 s, over the window of one standard load-test run (2 min).
+Error budget = (1 − 0.99) × 432 = 4.32, so 4 failed requests are allowed. <b>Used: 0 (0% of the budget).</b>
+In the rolling-update run (951 requests) the same SLO would allow 9 failures and 3 were used (33%).</p>
+<table><tr><th>Component</th><th>Evidence (measured)</th><th>Limitation found</th><th>Improvement proposed</th></tr>
+<tr><td>Data and storage</td><td>2,574/3,000 replies kept (85.8%); 250 invented slots; model download 285 MB in 1.1–1.75 s</td><td>Single SeaweedFS replica on one local volume; 4% of replies lost to the newline stop</td><td>Replicated object storage; Ollama JSON mode; store the clean dataset versioned with its checksum (done for v1)</td></tr>
+<tr><td>Model quality</td><td>Full frame: student 38%, teacher 41%; JSON validity 100%; intent 90%</td><td>Inherits teacher errors; train loss 0.008 suggests memorisation; v2 produced 1/100 degenerate outputs</td><td>Better teacher prompt/self-consistency, a held-out set for early stopping, more data, constrained JSON decoding of the slots too</td></tr>
+<tr><td>Latency and throughput</td><td>p50 1,100 ms, p95 1,300 ms, 3.63 req/s with 2 Pods; 476 ms p50 for one sequential client</td><td>One request at a time per Pod; under load ~60% of latency is queueing</td><td>Batching, ONNX/int8, KV-cache reuse of the shared prompt prefix, more replicas</td></tr>
+<tr><td>Resource utilisation</td><td>~1,005m CPU per Pod under load (100% of limit); memory 503–765 MiB of 1 GiB; peak 568 MiB in Docker at 1 CPU</td><td>CPU-bound; memory grows under concurrency and leaves ~25% headroom</td><td>Quantise to int8 (smaller RAM), CPU limit &gt; 1 with more torch threads</td></tr>
+<tr><td>Reliability and recovery</td><td>Recovery 13 s with 0 failures; rolling update 0.32% failed; cold start median 9 s</td><td>Single node: no machine-level fault tolerance; k3s container once stopped and needed a manual restart</td><td>Multi-node cluster, PodDisruptionBudget, anti-affinity, a restart watchdog</td></tr>
+<tr><td>Security and cost</td><td>0.605 INR / 1,000 requests at 7.90 INR/h; Secrets only via the K8s Secret; gitleaks result in CI</td><td>Secrets are base64, not encrypted at rest; plain HTTP; replicas billed even when idle</td><td>Sealed Secrets/KMS, TLS on the Ingress, scale-to-zero or a lower min replica count off-peak</td></tr></table>
+
+<h3>References</h3>
+<p style="font-size:8.6pt">Kim &amp; Rush, Sequence-Level Knowledge Distillation, EMNLP 2016. Hinton et al., Distilling the Knowledge in a Neural Network, 2015.
+Chen et al., Distilling Knowledge Learned in BERT for Text Generation, ACL 2020. Bastianelli et al., SLURP, EMNLP 2020 (data, CC BY 4.0).
+EleutherAI Pythia-70M model card. Microsoft Phi-3.5-mini-instruct (via Ollama). Documentation for k3d, k3s, Kubernetes (HPA, probes, Secrets,
+rolling updates), SeaweedFS, FastAPI, Docker, GitHub Actions, gitleaks, AWS VPC Network ACLs, and the Google SRE book (SLOs).</p>
+</body></html>

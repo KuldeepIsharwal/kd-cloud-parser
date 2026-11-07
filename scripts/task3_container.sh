@@ -5,7 +5,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 source .secrets/s3.env
-IMAGE=${IMAGE:-kd-parser:1.0}
+IMAGE=${IMAGE:-kd-parser:1.1}
 OUT=results
 mkdir -p $OUT
 common=(--network host -e MODEL_URI=s3://models/models/v1 -e MODEL_VERSION=v1

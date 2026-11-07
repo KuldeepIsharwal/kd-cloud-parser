@@ -1,0 +1,4 @@
+### memory (docker stats samples during the 50 requests)
+samples: 12
+peak memory: 567.6 MiB of 1024 MiB limit; min 460.0 MiB
+OOMKilled: false  restarts: 0  status: running

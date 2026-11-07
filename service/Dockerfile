@@ -1,6 +1,6 @@
 # Inference service image. Model weights are NOT in the image: they are downloaded
 # from object storage (MODEL_URI) at start-up. CPU-only PyTorch wheel keeps it small.
-# Build (from the repository root):  docker build -t kd-parser:1.0 -f service/Dockerfile .
+# Build (from the repository root):  docker build -t kd-parser:1.1 -f service/Dockerfile .
 FROM python:3.12.8-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt \
     && find /usr/local/lib/python3.12 -name "__pycache__" -type d -prune -exec rm -rf {} +
 
 COPY service/app.py /app/app.py
+COPY training/common.py /app/common.py
 COPY data/schema.json /app/schema.json
 
 USER 1000

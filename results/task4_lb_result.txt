@@ -1,0 +1,3 @@
+parser-5697666b86-dmmr7: 217 requests = 50.2%
+parser-5697666b86-29mqp: 215 requests = 49.8%
+total successful: 432

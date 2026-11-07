@@ -1,6 +1,6 @@
 line-length = 130
 target-version = "py312"
-exclude = [".venv", "build"]
+exclude = [".venv", "build", "tools"]  # tools/ = unmodified student-kit files
 
 [lint]
 select = ["E", "F", "W", "I"]

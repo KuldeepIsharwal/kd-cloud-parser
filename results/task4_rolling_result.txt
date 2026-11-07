@@ -1,0 +1,24 @@
+### after rollback: X-Model-Version of 5 requests
+X-Model-Version: v1 X-Served-By: parser-5697666b86-p4n56
+X-Model-Version: v1 X-Served-By: parser-5697666b86-nw46h
+X-Model-Version: v1 X-Served-By: parser-5697666b86-p4n56
+X-Model-Version: v1 X-Served-By: parser-5697666b86-nw46h
+X-Model-Version: v1 X-Served-By: parser-5697666b86-p4n56
+### locust totals
+POST,/parse,951,3,1200.0,1256.9596985331464,442.2025769999891,13302.626620999945,70.21451104100946,3.177064254172098,0.01002228471347665,1200,1600,1600,1600,1800,2000,2500,4900,13000,13000,13000
+,Aggregated,951,3,1200.0,1256.9596985331464,442.2025769999891,13302.626620999945,70.21451104100946,3.177064254172098,0.01002228471347665,1200,1600,1600,1600,1800,2000,2500,4900,13000,13000,13000
+### per model version
+{
+  "per_replica": {
+    "parser-5697666b86-ccxnm": 85,
+    "parser-5697666b86-whtbz": 70,
+    "parser-5cf5c6f686-9hz2m": 132,
+    "parser-5cf5c6f686-jpvsp": 96,
+    "parser-5697666b86-nw46h": 293,
+    "parser-5697666b86-p4n56": 273
+  },
+  "per_model_version": {
+    "v1": 721,
+    "v2": 228
+  }
+}

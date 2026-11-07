@@ -1,0 +1,46 @@
+06:52:31 deleting pod parser-5697666b86-nw46h
+pod "parser-5697666b86-nw46h" deleted
+06:52:32 ready=1/2 up-to-date=2 available=1
+06:52:35 ready=1/2 up-to-date=2 available=1
+06:52:38 ready=1/2 up-to-date=2 available=1
+06:52:41 ready=1/2 up-to-date=2 available=1
+06:52:44 ready=2/2 up-to-date=2 available=2
+06:52:47 ready=2/2 up-to-date=2 available=2
+06:52:50 ready=2/2 up-to-date=2 available=2
+06:52:54 ready=2/2 up-to-date=2 available=2
+06:52:57 ready=2/2 up-to-date=2 available=2
+06:53:00 ready=2/2 up-to-date=2 available=2
+06:53:03 ready=2/2 up-to-date=2 available=2
+06:53:06 ready=2/2 up-to-date=2 available=2
+06:53:09 ready=2/2 up-to-date=2 available=2
+06:53:12 ready=2/2 up-to-date=2 available=2
+06:53:16 ready=2/2 up-to-date=2 available=2
+06:53:19 ready=2/2 up-to-date=2 available=2
+06:53:22 ready=2/2 up-to-date=2 available=2
+06:53:25 ready=2/2 up-to-date=2 available=2
+06:53:28 ready=2/2 up-to-date=2 available=2
+06:53:31 ready=2/2 up-to-date=2 available=2
+06:53:34 ready=2/2 up-to-date=2 available=2
+06:53:37 ready=2/2 up-to-date=2 available=2
+06:53:41 ready=2/2 up-to-date=2 available=2
+06:53:44 ready=2/2 up-to-date=2 available=2
+06:53:47 ready=2/2 up-to-date=2 available=2
+06:53:50 ready=2/2 up-to-date=2 available=2
+06:53:53 ready=2/2 up-to-date=2 available=2
+06:53:56 ready=2/2 up-to-date=2 available=2
+06:53:59 ready=2/2 up-to-date=2 available=2
+06:54:03 ready=2/2 up-to-date=2 available=2
+06:54:06 ready=2/2 up-to-date=2 available=2
+06:54:09 ready=2/2 up-to-date=2 available=2
+06:54:12 ready=2/2 up-to-date=2 available=2
+06:54:15 ready=2/2 up-to-date=2 available=2
+06:54:18 ready=2/2 up-to-date=2 available=2
+06:54:21 ready=2/2 up-to-date=2 available=2
+06:54:25 ready=2/2 up-to-date=2 available=2
+06:54:28 ready=2/2 up-to-date=2 available=2
+06:54:31 ready=2/2 up-to-date=2 available=2
+06:54:34 ready=2/2 up-to-date=2 available=2
+NAME                      READY   STATUS    RESTARTS   AGE     IP           NODE                   NOMINATED NODE   READINESS GATES
+parser-5697666b86-hmtgj   1/1     Running   0          2m5s    10.42.0.71   k3d-kdcloud-server-0   <none>           <none>
+parser-5697666b86-p4n56   1/1     Running   0          5m37s   10.42.0.70   k3d-kdcloud-server-0   <none>           <none>
+,Aggregated,637,0,1100.0,1122.470616723709,438.67254399992817,2213.544643000205,70.33124018838305,3.5543238286054297,0.0,1100,1400,1500,1600,1700,1700,2000,2000,2200,2200,2200

@@ -16,7 +16,7 @@ SUBSET       ?=
 REPO         ?= KuldeepIsharwal/kd-cloud-parser
 RELEASE_TAG  ?= model-v1
 RELEASE_URL  := https://github.com/$(REPO)/releases/download/$(RELEASE_TAG)
-IMAGE        := kd-parser:1.0
+IMAGE        := kd-parser:1.1
 WORKER_IMAGE := kd-worker:1.0
 export S3_ENDPOINT ?= http://localhost:8333
 

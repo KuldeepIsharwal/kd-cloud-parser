@@ -80,7 +80,7 @@
 {"id": "V080", "prediction": "{\"intent\": \"alarm_query\", \"date\": null, \"time\": null, \"place\": null}"}
 {"id": "V081", "prediction": "{\"intent\": \"weather_query\", \"date\": null, \"time\": null, \"place\": null}"}
 {"id": "V082", "prediction": "{\"intent\": \"alarm_query\", \"date\": null, \"time\": null, \"place\": null}"}
-{"id": "V083", "prediction": "{\"intent\": \"weather_remove\", \"date\": \"today\", \"time\": null, \"place\": null}"}
+{"id": "V083", "prediction": "{\"intent\": \"recommendation_events\", \"date\": \"today\", \"time\": null, \"place\": null}"}
 {"id": "V084", "prediction": "{\"intent\": \"alarm_query\", \"date\": null, \"time\": null, \"place\": null}"}
 {"id": "V085", "prediction": "{\"intent\": \"calendar_set\", \"date\": null, \"time\": null, \"place\": null}"}
 {"id": "V086", "prediction": "{\"intent\": \"calendar_set\", \"date\": \"next\", \"time\": null, \"place\": \"olly\"}"}

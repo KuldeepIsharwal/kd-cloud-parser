@@ -1,0 +1,25 @@
+### 06:35:11 scaled 0 -> 1; endpoints of Service parser every second
+06:35:11 ready=[] notReady=[] podReady=false
+06:35:13 ready=[] notReady=[10.42.0.64] podReady=false
+06:35:14 ready=[] notReady=[10.42.0.64] podReady=false
+06:35:16 ready=[] notReady=[10.42.0.64] podReady=false
+06:35:17 ready=[] notReady=[10.42.0.64] podReady=false
+06:35:18 ready=[] notReady=[10.42.0.64] podReady=false
+06:35:20 ready=[10.42.0.64] notReady=[] podReady=true
+--- pod log ---
+INFO:     10.42.0.1:37066 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+INFO:     10.42.0.1:37076 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+INFO:     10.42.0.1:37080 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+2026-11-07 06:35:16,394 INFO model download start: s3://models/models/v1 from http://seaweedfs-s3.data.svc.cluster.local:8333 (version v1)
+2026-11-07 06:35:16,841 INFO downloaded s3://models/models/v1/config.json (799 bytes)
+2026-11-07 06:35:16,847 INFO downloaded s3://models/models/v1/generation_config.json (111 bytes)
+2026-11-07 06:35:17,415 INFO downloaded s3://models/models/v1/model.safetensors (281715176 bytes)
+2026-11-07 06:35:17,424 INFO downloaded s3://models/models/v1/model.sha256 (678 bytes)
+2026-11-07 06:35:17,431 INFO downloaded s3://models/models/v1/special_tokens_map.json (441 bytes)
+2026-11-07 06:35:17,457 INFO downloaded s3://models/models/v1/tokenizer.json (3564303 bytes)
+2026-11-07 06:35:17,465 INFO downloaded s3://models/models/v1/tokenizer_config.json (4835 bytes)
+2026-11-07 06:35:17,471 INFO downloaded s3://models/models/v1/version.json (191 bytes)
+2026-11-07 06:35:17,472 INFO model download done: 285286534 bytes in 1.08s
+INFO:     10.42.0.1:37094 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+2026-11-07 06:35:19,437 INFO model loaded and ready after 3.04s
+INFO:     10.42.0.1:37104 - "GET /readyz HTTP/1.1" 200 OK

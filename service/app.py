@@ -115,13 +115,11 @@ def load_model():
 
 
 def generate(text):
-    import torch
-    tok, model = state["tok"], state["model"]
-    enc = tok(prompt_for(text), return_tensors="pt")
-    with gen_lock, torch.no_grad():
-        out = model.generate(**enc, max_new_tokens=MAX_NEW_TOKENS, do_sample=False,
-                             pad_token_id=tok.eos_token_id, eos_token_id=tok.eos_token_id)
-    return cut_output(tok.decode(out[0, enc["input_ids"].shape[1]:], skip_special_tokens=True))
+    """Schema-constrained decoding (training/common.py): the intent is chosen among the
+    eight allowed values by the model's likelihood, the slots are generated greedily."""
+    from common import constrained_generate
+    with gen_lock:
+        return constrained_generate(state["model"], state["tok"], text, MAX_NEW_TOKENS, tuple(SCHEMA["intents"]))
 
 
 @app.on_event("startup")

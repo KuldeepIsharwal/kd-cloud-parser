@@ -1,0 +1,40 @@
+### kubectl get (namespace app)
+NAME                     READY   UP-TO-DATE   AVAILABLE   AGE   CONTAINERS   IMAGES          SELECTOR
+deployment.apps/parser   1/1     1            1           23m   parser       kd-parser:1.1   app=parser
+
+NAME                                DESIRED   CURRENT   READY   AGE     CONTAINERS   IMAGES          SELECTOR
+replicaset.apps/parser-5697666b86   1         1         1       106s    parser       kd-parser:1.1   app=parser,pod-template-hash=5697666b86
+replicaset.apps/parser-5dfb959bcc   0         0         0       3m11s   parser       kd-parser:1.0   app=parser,pod-template-hash=5dfb959bcc
+replicaset.apps/parser-6bd7bb6fb4   0         0         0       23m     parser       kd-parser:1.0   app=parser,pod-template-hash=6bd7bb6fb4
+replicaset.apps/parser-7c7cdf8b8f   0         0         0       2m25s   parser       kd-parser:1.0   app=parser,pod-template-hash=7c7cdf8b8f
+
+NAME                          READY   STATUS    RESTARTS   AGE    IP           NODE                   NOMINATED NODE   READINESS GATES
+pod/parser-5697666b86-zp4tr   1/1     Running   0          106s   10.42.0.62   k3d-kdcloud-server-0   <none>           <none>
+
+NAME             TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE   SELECTOR
+service/parser   ClusterIP   10.43.144.71   <none>        80/TCP    23m   app=parser
+
+NAME                               CLASS     HOSTS   ADDRESS      PORTS   AGE
+ingress.networking.k8s.io/parser   traefik   *       172.18.0.2   80      23m
+
+NAME                                         REFERENCE           TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+horizontalpodautoscaler.autoscaling/parser   Deployment/parser   cpu: 0%/70%   1         2         1          23m
+
+NAME               ENDPOINTS         AGE
+endpoints/parser   10.42.0.62:8000   23m
+
+### resources and probes
+{"limits":{"cpu":"1","memory":"1Gi"},"requests":{"cpu":"500m","memory":"512Mi"}}
+{"failureThreshold":3,"httpGet":{"path":"/healthz","port":"http","scheme":"HTTP"},"periodSeconds":10,"successThreshold":1,"timeoutSeconds":3}
+{"failureThreshold":2,"httpGet":{"path":"/readyz","port":"http","scheme":"HTTP"},"periodSeconds":2,"successThreshold":1,"timeoutSeconds":2}
+
+### POST /parse through the Ingress (localhost:8080 -> Traefik -> Service parser)
+HTTP/1.1 200 OK
+Content-Length: 67
+Content-Type: application/json
+Date: Sat, 07 Nov 2026 06:35:00 GMT
+Server: uvicorn
+X-Model-Version: v1
+X-Served-By: parser-5697666b86-zp4tr
+
+{"intent":"weather_query","date":null,"time":null,"place":"london"}

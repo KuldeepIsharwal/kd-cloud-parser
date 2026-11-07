@@ -1,1 +1,22 @@
 version v2: 1500 records, seed 7, output build/models/v2
+epoch 1/12  loss 0.7862  (304s)
+epoch 2/12  loss 0.4854  (469s)
+epoch 3/12  loss 0.2476  (644s)
+epoch 4/12  loss 0.1847  (820s)
+epoch 5/12  loss 0.1290  (990s)
+epoch 6/12  loss 0.0915  (1168s)
+epoch 7/12  loss 0.0644  (1352s)
+epoch 8/12  loss 0.0411  (1525s)
+epoch 9/12  loss 0.0244  (1693s)
+epoch 10/12  loss 0.0131  (1861s)
+epoch 11/12  loss 0.0060  (2025s)
+epoch 12/12  loss 0.0017  (2192s)
+5e29f9ae935e5db29cb6f5abe8e2d414019f4f85ba5bf9cfb8ada797300f3e08  pythia70m-kd-v2.tar.gz
+a759486cc8ac7fd796b6a06cf0a8667cf502702407ea9dd5842d6b0b08d5f1f1  config.json
+488c1a4387cb693f41637aab91d5986221abea9648267cbf729d4ea55153c3c4  generation_config.json
+3681e18a431fc86572bb8b3cc93a4819e2189a4b48eeb62339eb215e41dd07ba  model.safetensors
+10b8c8852c1e1f70b54d9aff61728408c28971c0e97a6c5a7b2debbd1d3e9c0c  special_tokens_map.json
+d4c0d99d84af59e9126913fafe5210822963e9a3065ee43e6833b358b0c2f825  tokenizer.json
+bdb543faab910cb5f753d713554854e9467562293ed619e5416a780bdc50ad48  tokenizer_config.json
+d100617c7f141e3f796958350c0ed8b1a4ffd1e518bb856aca5c2ba63b2ce91e  version.json
+done in 2202s; loss written to training/loss_v2.csv

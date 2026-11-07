@@ -1,0 +1,37 @@
+### docker run --cpus 1 --memory 1g (container parser-limits)
+NanoCpus=1000000000 Memory=1073741824
+readyz while loading:
+000
+readyz after load: 200
+healthz: 200
+--- container log (model download from object storage) ---
+INFO:     127.0.0.1:40954 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:40966 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:40970 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:40978 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:40986 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:40988 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+2026-11-07 06:34:03,983 INFO model download start: s3://models/models/v1 from http://localhost:8333 (version v1)
+INFO:     127.0.0.1:56796 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+2026-11-07 06:34:04,478 INFO downloaded s3://models/models/v1/config.json (799 bytes)
+2026-11-07 06:34:04,484 INFO downloaded s3://models/models/v1/generation_config.json (111 bytes)
+INFO:     127.0.0.1:56810 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+INFO:     127.0.0.1:56812 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+2026-11-07 06:34:05,598 INFO downloaded s3://models/models/v1/model.safetensors (281715176 bytes)
+2026-11-07 06:34:05,605 INFO downloaded s3://models/models/v1/model.sha256 (678 bytes)
+2026-11-07 06:34:05,612 INFO downloaded s3://models/models/v1/special_tokens_map.json (441 bytes)
+2026-11-07 06:34:05,638 INFO downloaded s3://models/models/v1/tokenizer.json (3564303 bytes)
+2026-11-07 06:34:05,644 INFO downloaded s3://models/models/v1/tokenizer_config.json (4835 bytes)
+2026-11-07 06:34:05,651 INFO downloaded s3://models/models/v1/version.json (191 bytes)
+2026-11-07 06:34:05,652 INFO model download done: 285286534 bytes in 1.67s
+INFO:     127.0.0.1:56824 - "GET /readyz HTTP/1.1" 503 Service Unavailable
+--- one request with headers ---
+HTTP/1.1 200 OK
+date: Sat, 07 Nov 2026 06:34:08 GMT
+server: uvicorn
+x-model-version: v1
+x-served-by: parser-limits
+content-length: 78
+content-type: application/json
+
+{"intent":"alarm_set","date":"tomorrow","time":"seven thirty am","place":null}

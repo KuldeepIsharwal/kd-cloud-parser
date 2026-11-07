@@ -41,7 +41,7 @@ readiness() {
 hpa() {
   # HPA min 1 / max 2 / 70% CPU. Start from 1 replica, load for 4 minutes, then watch it scale back down.
   kubectl -n app scale deploy/parser --replicas=1; wait_ready
-  ( for i in $(seq 1 66); do echo "$(ts) $(kubectl -n app get hpa parser --no-headers | awk '{print "targets="$3" min="$4" max="$5" replicas="$6}') pods=$(kubectl -n app get pods -l app=parser --no-headers | wc -l)"; sleep 10; done ) > $R/task4_hpa_watch.txt &
+  ( for i in $(seq 1 66); do echo "$(ts) $(kubectl -n app get hpa parser -o jsonpath='cpu={.status.currentMetrics[0].resource.current.averageUtilization}%/70% currentReplicas={.status.currentReplicas} desiredReplicas={.status.desiredReplicas}') pods=$(kubectl -n app get pods -l app=parser --no-headers | wc -l)"; sleep 10; done ) > $R/task4_hpa_watch.txt &
   W=$!
   sleep 20
   LOADTEST_HEADERS_OUT=$R/task4_hpa_headers.json $LOCUST --run-time 4m --csv $R/task4_hpa > $R/task4_hpa_locust.txt 2>&1
@@ -104,15 +104,7 @@ coldstart() {
     sleep 3; wait_ready >/dev/null
     until [ "$(kubectl -n app get pods -l app=parser --field-selector=status.phase=Running -o jsonpath='{range .items[*]}{.status.containerStatuses[0].ready}{"\n"}{end}' | grep -c true)" -ge 2 ] \
        && [ "$(kubectl -n app get pods -l app=parser --no-headers | wc -l)" -eq 2 ]; do sleep 1; done
-    kubectl -n app get pods -l app=parser -o json | python3 -c '
-import json, sys
-from datetime import datetime
-f = lambda s: datetime.strptime(s, "%Y-%m-%dT%H:%M:%SZ")
-for p in json.load(sys.stdin)["items"]:
-    ready = [c for c in p["status"]["conditions"] if c["type"] == "Ready"][0]
-    secs = (f(ready["lastTransitionTime"]) - f(p["metadata"]["creationTimestamp"])).total_seconds()
-    print(f"COLD {p[\"metadata\"][\"name\"]} created={p[\"metadata\"][\"creationTimestamp\"]} ready={ready[\"lastTransitionTime\"]} seconds={secs:.0f}")
-' | tee -a $R/task4_coldstart.txt
+    kubectl -n app get pods -l app=parser -o json | python3 scripts/coldstart_times.py | tee -a $R/task4_coldstart.txt
     for p in $(kubectl -n app get pods -l app=parser -o name); do
       echo "--- log $p"; kubectl -n app logs "$p" | grep -E "download|ready after"; done >> $R/task4_coldstart.txt
   done

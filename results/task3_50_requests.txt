@@ -1,0 +1,3 @@
+### 50 sequential requests
+status codes: {200: 50}
+latency mean 480 ms, p50 476 ms, max 602 ms

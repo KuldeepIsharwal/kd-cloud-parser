@@ -1,0 +1,3 @@
+NAME                      READY   STATUS    RESTARTS   AGE   IP           NODE                   NOMINATED NODE   READINESS GATES
+parser-5697666b86-29mqp   1/1     Running   0          36s   10.42.0.76   k3d-kdcloud-server-0   <none>           <none>
+parser-5697666b86-dmmr7   1/1     Running   0          36s   10.42.0.77   k3d-kdcloud-server-0   <none>           <none>

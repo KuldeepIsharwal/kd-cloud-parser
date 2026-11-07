@@ -1,0 +1,7 @@
+### image size and weight check
+WARNING: This output is designed for human readability. For machine-readable output, please use --format.
+IMAGE           ID             DISK USAGE   CONTENT SIZE   EXTRA
+kd-parser:1.1   9169c356e4db       1.34GB          279MB        
+uncompressed size: 278991296 bytes
+model weight files inside the image (expect none):
+0

@@ -1,0 +1,5 @@
+results/student_v1_greedy_validation_predictions.jsonl: 99/100 pass the service schema check
+    V083 {"intent": "weather_remove", "date": "today", "time": null, "place": null}
+results/student_v1_validation_predictions.jsonl: 100/100 pass the service schema check
+results/student_v2_validation_predictions.jsonl: 99/100 pass the service schema check
+    V057 {"intent": "calendar_remove", "date": "april first april first april first april first april first april first
